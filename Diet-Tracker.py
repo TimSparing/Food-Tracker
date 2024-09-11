@@ -5,7 +5,6 @@ from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtGui import QFont, QColor, QIcon
 import sys
 import pyqtgraph as pg
-from pyqtgraph import AxisItem
 import os
 import sqlite3
 
@@ -16,41 +15,43 @@ Goal = 80
 # Helper function to convert color name to QColor or RGB(A) tuple
 
 
-class CustomAxisItem(AxisItem):
-    def __init__(self, orientation, angle, *args, **kwargs):
-        super().__init__(orientation, *args, **kwargs)
-        self._angle = angle % 360  # Keep the angle within 360 degrees
+class CustomAxisItem(pg.AxisItem):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.label_angle = -60  # Set the default label angle
+
+    def tickStrings(self, values, scale, spacing):
+        """Override tickStrings to format axis labels."""
+        strings = super().tickStrings(values, scale, spacing)
+        return strings
 
     def drawPicture(self, p, axisSpec, tickSpecs, textSpecs):
         """
-        Override drawPicture to apply rotation to x-axis text, and handle bounding box manually.
+        Override drawPicture to apply rotation to x-axis text.
         """
         # Call the base class method to draw the axis line and ticks, but no labels
         super().drawPicture(p, axisSpec, tickSpecs, [])
 
-        # Define offset values to move the labels (adjust these as needed)
-        x_offset = -27  # Move label to the left by 10 pixels
-        y_offset = -5   # Move label down by 10 pixels
+        # Offset for positioning the labels
+        x_offset = -26
+        y_offset = -3  # Adjust based on your padding needs
 
+        # Custom text drawing with rotation
         for rect, flags, text in textSpecs:
-            p.save()  # Save the painter state
+            p.save()  # Save painter state
+            p.setClipping(False)  # Disable clipping to avoid partial drawing
 
-            # Disable clipping for this drawing operation
-            p.setClipping(False)
-
-            # Move the coordinate system to the center of the text rect for rotation
+            # Move to the center of the text rect for rotation
             p.translate(rect.center())
-            p.rotate(self._angle)  # Rotate the text
-            p.translate(-rect.center())  # Revert coordinate system
+            p.rotate(self.label_angle)  # Apply rotation
+            p.translate(-rect.center())
 
-            # Apply additional translation for custom offset
-            p.translate(x_offset, y_offset)  # Move the label left and down
+            # Apply offset for custom positioning
+            p.translate(x_offset, y_offset)
 
             # Draw the rotated text
             p.drawText(rect, flags, text)
-
-            # Restore the painter state
-            p.restore()
+            p.restore()  # Restore painter state
 
 
 def get_color_from_name(color_name, opacity=255):
@@ -1211,7 +1212,7 @@ class MainWindow(QMainWindow):
             # Prepare the row for the table
             table_data.append([date, f"{weight}" if weight is not None else "N/A",
                                f"{total_calories_in:.0f}", f"{total_calories_out:.0f}",
-                               f"{total_protein:.0f}g", prior_diff, goal_diff])
+                               f"{total_protein:.0f}", prior_diff, goal_diff])
 
             # Update previous_weight for the next iteration (current row weight becomes previous_weight)
             previous_weight = weight
@@ -1226,9 +1227,29 @@ class MainWindow(QMainWindow):
         # Update the table widget
         self.table.setRowCount(len(table_data))  # Adjust row count
         for row_idx, row_data in enumerate(table_data):
+            try:
+                # Extract weight from the row (column index 1 for weight)
+                weight = float(row_data[1]) if row_data[1] != "N/A" else None
+
+                # Extract protein intake, now it's just a number without "g" (column index 4 for protein)
+                protein = float(row_data[4]) if row_data[4] != "N/A" else 0
+            except ValueError:
+                # Handle the case where weight or protein cannot be parsed correctly
+                weight = None
+                protein = 0
+
             for col_idx, value in enumerate(row_data):
                 item = QTableWidgetItem(str(value))  # Create table item
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)  # Align text to center
+
+                # Check if the current column is the 'Protein (g)' column and if weight is valid
+                if col_idx == 4 and weight is not None:
+                    # Check if protein intake is below 0.8 * weight
+                    if protein < 0.8 * weight:
+                        item.setForeground(QColor('red'))  # Set text color to red if condition is met
+                    else:
+                        item.setForeground(QColor('black'))  # Set text color back to default for valid values
+
                 self.table.setItem(row_idx, col_idx, item)  # Add item to the table
 
         # Adjust rows and columns to fit the content
@@ -1536,28 +1557,31 @@ class MainWindow(QMainWindow):
         layout.addLayout(btn_layout)
         btn_6.clicked.connect(self.move_to_previous_day)  # Previous Day
         btn_8.clicked.connect(self.move_to_next_day)  # Next Day
-        btn_7.clicked.connect(self.show_date_popup)  # Date Picker
 
     def create_graph(self):
         # Create the main plot widget
         self.graph_widget = pg.PlotWidget()
 
-        self.graph_widget.getPlotItem().setContentsMargins(0, 0, 0, 40)  # Add 100 pixels margin at the bottom
+        # Create a custom x-axis with rotated labels
+        custom_axis = CustomAxisItem(orientation='bottom')  # Custom x-axis with rotation
+        self.graph_widget.plotItem.setAxisItems({'bottom': custom_axis})
 
         # Set background and labels
         self.graph_widget.setBackground('w')
+
+        # Move the x-axis up by increasing the bottom padding
+        self.graph_widget.plotItem.getViewBox().setContentsMargins(0, 0, 0, 50)  # Increase bottom padding for axis space
+
+        # Set a fixed height for the bottom axis to create more space between the axis and the "Date" label
+        custom_axis.setHeight(58)  # Adjust this value to create space between x-axis and label
+
+        # Set the labels for axes
         self.graph_widget.plotItem.setLabel('left', 'Weight (kg)')
+        self.graph_widget.plotItem.setLabel('bottom')  # No need for an offset here, space is controlled by axis
 
-        # Use the custom axis for the x-axis with -60 degree rotation
-        custom_axis = CustomAxisItem(orientation='bottom', angle=-60)  # Rotate by -60 degrees
-        self.graph_widget.plotItem.setAxisItems({'bottom': custom_axis})
-
-        # Set up the right axis for calories (actual values)
+        # Add the right axis for calories
         self.graph_widget.plotItem.showAxis('right')
-        self.graph_widget.plotItem.getAxis('right').setLabel('Calories')
-
-        # Connect the signal to manually sync y-axis ranges
-        self.graph_widget.plotItem.vb.sigYRangeChanged.connect(self.sync_right_y_axis)
+        self.graph_widget.plotItem.getAxis('right').setLabel('Calories (kcal)')
 
         return self.graph_widget
 
