@@ -1,6 +1,21 @@
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                             QLineEdit, QPushButton, QTableWidget, QTableWidgetItem, QComboBox, QSpacerItem,
-                             QSizePolicy, QDialog, QCalendarWidget, QGridLayout)
+from PyQt6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QComboBox,
+    QSpacerItem,
+    QSizePolicy,
+    QDialog,
+    QCalendarWidget,
+    QGridLayout,
+)
 from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtGui import QFont, QColor, QIcon
 import sys
@@ -65,20 +80,21 @@ def get_color_from_name(color_name, opacity=255):
 
 def get_shape_symbol(shape_name):
     """Helper function to map shape names to PyQtGraph symbols."""
-    if shape_name == 'Circle':
-        return 'o'
-    elif shape_name == 'Square':
-        return 's'
-    elif shape_name == 'Triangle':
-        return 't'
+    if shape_name == "Circle":
+        return "o"
+    elif shape_name == "Square":
+        return "s"
+    elif shape_name == "Triangle":
+        return "t"
     else:
-        return 'o'  # Default to Circle if not recognized
+        return "o"  # Default to Circle if not recognized
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        app.setStyle("Fusion")
         # Initialize the database before anything else
         self.initialize_database()
 
@@ -129,7 +145,8 @@ class MainWindow(QMainWindow):
 
         # Create tables if the database is new
         if not db_exists:
-            self.cursor.execute('''CREATE TABLE IF NOT EXISTS settings (
+            self.cursor.execute(
+                """CREATE TABLE IF NOT EXISTS settings (
                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                                     line1_color TEXT,
                                     line2_color TEXT,
@@ -146,101 +163,112 @@ class MainWindow(QMainWindow):
                                     calories_out_color TEXT,
                                     calories_out_shape TEXT,
                                     calories_out_opacity REAL,
-                                    calories_out_size REAL)''')
+                                    calories_out_size REAL)"""
+            )
 
-            self.cursor.execute('''CREATE TABLE IF NOT EXISTS basic_food (
+            self.cursor.execute(
+                """CREATE TABLE IF NOT EXISTS basic_food (
                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                                     food_name TEXT,
                                     calories_per_100g REAL,
-                                    protein_per_100g REAL)''')
+                                    protein_per_100g REAL)"""
+            )
 
-            self.cursor.execute('''CREATE TABLE IF NOT EXISTS composite_food (
+            self.cursor.execute(
+                """CREATE TABLE IF NOT EXISTS composite_food (
                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                                     food_name TEXT,
                                     ingredients TEXT,  -- Stores the list of ingredients in format (name, amount)
                                     calories_per_100g REAL,
-                                    protein_per_100g REAL)''')
+                                    protein_per_100g REAL)"""
+            )
 
-            self.cursor.execute('''CREATE TABLE IF NOT EXISTS daily_data (
+            self.cursor.execute(
+                """CREATE TABLE IF NOT EXISTS daily_data (
                                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                                         date TEXT UNIQUE,
                                         weight REAL,
                                         food_consumed TEXT,  -- This stores a list of foods and amounts in format (name, amount)
-                                        exercises TEXT)''')  # This stores a list of exercises and calories burned
+                                        exercises TEXT)"""
+            )  # This stores a list of exercises and calories burned
 
             # Insert default settings (can be modified later by the user)
-            self.cursor.execute('''INSERT INTO settings (line1_color, line2_color, font_size, font_type,
+            self.cursor.execute(
+                """INSERT INTO settings (line1_color, line2_color, font_size, font_type,
                                                          weight_color, weight_shape, weight_opacity, weight_size,
                                                          calories_in_color, calories_in_shape, calories_in_opacity, calories_in_size,
                                                          calories_out_color, calories_out_shape, calories_out_opacity, calories_out_size)
-                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                                ('blue', 'red', 'Medium', 'Arial',  # Default font settings
-                                 'blue', 'Circle', 100, 10,  # Default graph settings for weight
-                                 'green', 'Square', 100, 10,  # Default graph settings for calories in
-                                 'red', 'Triangle', 100, 10))  # Default graph settings for calories out
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    "blue",
+                    "red",
+                    "Medium",
+                    "Arial",  # Default font settings
+                    "blue",
+                    "Circle",
+                    100,
+                    10,  # Default graph settings for weight
+                    "green",
+                    "Square",
+                    100,
+                    10,  # Default graph settings for calories in
+                    "red",
+                    "Triangle",
+                    100,
+                    10,
+                ),
+            )  # Default graph settings for calories out
             self.conn.commit()
-
-    def add_missing_columns(self):
-        """Helper function to add missing columns to the settings table."""
-        # List of new columns and their default values
-        columns_to_add = [
-            ("weight_color", "TEXT", "'blue'"),
-            ("weight_shape", "TEXT", "'Circle'"),
-            ("weight_opacity", "REAL", "100"),
-            ("weight_size", "REAL", "10"),
-            ("calories_in_color", "TEXT", "'green'"),
-            ("calories_in_shape", "TEXT", "'Square'"),
-            ("calories_in_opacity", "REAL", "100"),
-            ("calories_in_size", "REAL", "10"),
-            ("calories_out_color", "TEXT", "'red'"),
-            ("calories_out_shape", "TEXT", "'Triangle'"),
-            ("calories_out_opacity", "REAL", "100"),
-            ("calories_out_size", "REAL", "10")
-        ]
-
-        # Check if each column exists and add if not
-        for column_name, column_type, default_value in columns_to_add:
-            try:
-                self.cursor.execute(
-                    f"ALTER TABLE settings ADD COLUMN {column_name} {column_type} DEFAULT {default_value}")
-            except sqlite3.OperationalError:
-                # Column already exists, continue to the next one
-                continue
-        self.conn.commit()
 
     def load_settings(self):
         # Fetch the settings from the database
-        self.cursor.execute('''SELECT line1_color, line2_color, font_size, font_type,
+        self.cursor.execute(
+            """SELECT line1_color, line2_color, font_size, font_type,
                                       weight_color, weight_shape, weight_opacity, weight_size,
                                       calories_in_color, calories_in_shape, calories_in_opacity, calories_in_size,
                                       calories_out_color, calories_out_shape, calories_out_opacity, calories_out_size
-                               FROM settings LIMIT 1''')
+                               FROM settings LIMIT 1"""
+        )
         settings = self.cursor.fetchone()
 
         if settings:
-            (self.line1_color, self.line2_color, self.font_size, self.font_type,
-             self.weight_color, self.weight_shape, self.weight_opacity, self.weight_size,
-             self.calories_in_color, self.calories_in_shape, self.calories_in_opacity, self.calories_in_size,
-             self.calories_out_color, self.calories_out_shape, self.calories_out_opacity, self.calories_out_size) = settings
+            (
+                self.line1_color,
+                self.line2_color,
+                self.font_size,
+                self.font_type,
+                self.weight_color,
+                self.weight_shape,
+                self.weight_opacity,
+                self.weight_size,
+                self.calories_in_color,
+                self.calories_in_shape,
+                self.calories_in_opacity,
+                self.calories_in_size,
+                self.calories_out_color,
+                self.calories_out_shape,
+                self.calories_out_opacity,
+                self.calories_out_size,
+            ) = settings
 
             # Apply settings to the graph and font
             self.apply_font_to_widgets(self.font_type, self.font_size)
         else:
             # If no settings found, apply default values
-            self.line1_color = 'blue'
-            self.line2_color = 'red'
-            self.font_size = 'Medium'
-            self.font_type = 'Arial'
-            self.weight_color = 'blue'
-            self.weight_shape = 'Circle'
+            self.line1_color = "blue"
+            self.line2_color = "red"
+            self.font_size = "Medium"
+            self.font_type = "Arial"
+            self.weight_color = "blue"
+            self.weight_shape = "Circle"
             self.weight_opacity = 100
             self.weight_size = 10
-            self.calories_in_color = 'green'
-            self.calories_in_shape = 'Square'
+            self.calories_in_color = "green"
+            self.calories_in_shape = "Square"
             self.calories_in_opacity = 100
             self.calories_in_size = 10
-            self.calories_out_color = 'red'
-            self.calories_out_shape = 'Triangle'
+            self.calories_out_color = "red"
+            self.calories_out_shape = "Triangle"
             self.calories_out_opacity = 100
             self.calories_out_size = 10
 
@@ -254,8 +282,10 @@ class MainWindow(QMainWindow):
         if weight:
             weight = float(weight)
             # Fetch existing data for the selected date
-            self.cursor.execute('SELECT food_consumed, exercises FROM daily_data WHERE date = ?',
-                                (self.selected_date.toString(Qt.DateFormat.ISODate),))
+            self.cursor.execute(
+                "SELECT food_consumed, exercises FROM daily_data WHERE date = ?",
+                (self.selected_date.toString(Qt.DateFormat.ISODate),),
+            )
             existing_data = self.cursor.fetchone()
 
             if existing_data:
@@ -264,8 +294,15 @@ class MainWindow(QMainWindow):
                 food_consumed, exercises = "", ""  # Initialize if no data exists
 
             # Update the database with the new weight, while keeping the food and exercises unchanged
-            self.cursor.execute('INSERT OR REPLACE INTO daily_data (date, weight, food_consumed, exercises) VALUES (?, ?, ?, ?)',
-                                (self.selected_date.toString(Qt.DateFormat.ISODate), weight, food_consumed, exercises))
+            self.cursor.execute(
+                "INSERT OR REPLACE INTO daily_data (date, weight, food_consumed, exercises) VALUES (?, ?, ?, ?)",
+                (
+                    self.selected_date.toString(Qt.DateFormat.ISODate),
+                    weight,
+                    food_consumed,
+                    exercises,
+                ),
+            )
             self.conn.commit()
             self.update_table()  # Update the table to reflect the new data
             self.update_graph()
@@ -276,8 +313,10 @@ class MainWindow(QMainWindow):
         if food and quantity:
             quantity = float(quantity)
             # Fetch existing data for the selected date
-            self.cursor.execute('SELECT weight, exercises, food_consumed FROM daily_data WHERE date = ?',
-                                (self.selected_date.toString(Qt.DateFormat.ISODate),))
+            self.cursor.execute(
+                "SELECT weight, exercises, food_consumed FROM daily_data WHERE date = ?",
+                (self.selected_date.toString(Qt.DateFormat.ISODate),),
+            )
             existing_data = self.cursor.fetchone()
 
             if existing_data:
@@ -293,8 +332,10 @@ class MainWindow(QMainWindow):
                 new_food = food_str
 
             # Update the database with the new food data, keeping other data unchanged
-            self.cursor.execute('INSERT OR REPLACE INTO daily_data (date, weight, food_consumed, exercises) VALUES (?, ?, ?, ?)',
-                                (self.selected_date.toString(Qt.DateFormat.ISODate), weight, new_food, exercises))
+            self.cursor.execute(
+                "INSERT OR REPLACE INTO daily_data (date, weight, food_consumed, exercises) VALUES (?, ?, ?, ?)",
+                (self.selected_date.toString(Qt.DateFormat.ISODate), weight, new_food, exercises),
+            )
             self.conn.commit()
             self.update_table()  # Update the table to reflect the new data
             self.update_graph()
@@ -305,8 +346,10 @@ class MainWindow(QMainWindow):
         if exercise and calories:
             calories = float(calories)
             # Fetch existing data for the selected date
-            self.cursor.execute('SELECT weight, food_consumed, exercises FROM daily_data WHERE date = ?',
-                                (self.selected_date.toString(Qt.DateFormat.ISODate),))
+            self.cursor.execute(
+                "SELECT weight, food_consumed, exercises FROM daily_data WHERE date = ?",
+                (self.selected_date.toString(Qt.DateFormat.ISODate),),
+            )
             existing_data = self.cursor.fetchone()
 
             if existing_data:
@@ -322,8 +365,15 @@ class MainWindow(QMainWindow):
                 new_exercises = exercise_str
 
             # Update the database with the new exercise data, keeping other data unchanged
-            self.cursor.execute('INSERT OR REPLACE INTO daily_data (date, weight, food_consumed, exercises) VALUES (?, ?, ?, ?)',
-                                (self.selected_date.toString(Qt.DateFormat.ISODate), weight, food_consumed, new_exercises))
+            self.cursor.execute(
+                "INSERT OR REPLACE INTO daily_data (date, weight, food_consumed, exercises) VALUES (?, ?, ?, ?)",
+                (
+                    self.selected_date.toString(Qt.DateFormat.ISODate),
+                    weight,
+                    food_consumed,
+                    new_exercises,
+                ),
+            )
             self.conn.commit()
             self.update_table()  # Update the table to reflect the new data
             self.update_graph()
@@ -335,7 +385,9 @@ class MainWindow(QMainWindow):
             calories = float(calories)
             # Fetch the food's calorie data from the database
             self.cursor.execute(
-                'SELECT calories_per_100g FROM basic_food WHERE food_name = ? UNION SELECT calories_per_100g FROM composite_food WHERE food_name = ?', (food, food))
+                "SELECT calories_per_100g FROM basic_food WHERE food_name = ? UNION SELECT calories_per_100g FROM composite_food WHERE food_name = ?",
+                (food, food),
+            )
             food_data = self.cursor.fetchone()
             if food_data:
                 calories_per_100g = food_data[0]
@@ -380,15 +432,31 @@ class MainWindow(QMainWindow):
             self.font_type = font_type
 
         # Save the updated settings in the database, including graph settings
-        self.cursor.execute('''UPDATE settings SET
+        self.cursor.execute(
+            """UPDATE settings SET
                                 line1_color = ?, line2_color = ?, font_size = ?, font_type = ?,
                                 weight_color = ?, weight_shape = ?, weight_opacity = ?, weight_size = ?,
                                 calories_in_color = ?, calories_in_shape = ?, calories_in_opacity = ?, calories_in_size = ?,
-                                calories_out_color = ?, calories_out_shape = ?, calories_out_opacity = ?, calories_out_size = ?''',
-                            (self.line1_color, self.line2_color, self.font_size, self.font_type,
-                             self.weight_color, self.weight_shape, self.weight_opacity, self.weight_size,
-                             self.calories_in_color, self.calories_in_shape, self.calories_in_opacity, self.calories_in_size,
-                             self.calories_out_color, self.calories_out_shape, self.calories_out_opacity, self.calories_out_size))
+                                calories_out_color = ?, calories_out_shape = ?, calories_out_opacity = ?, calories_out_size = ?""",
+            (
+                self.line1_color,
+                self.line2_color,
+                self.font_size,
+                self.font_type,
+                self.weight_color,
+                self.weight_shape,
+                self.weight_opacity,
+                self.weight_size,
+                self.calories_in_color,
+                self.calories_in_shape,
+                self.calories_in_opacity,
+                self.calories_in_size,
+                self.calories_out_color,
+                self.calories_out_shape,
+                self.calories_out_opacity,
+                self.calories_out_size,
+            ),
+        )
         self.conn.commit()
 
     def apply_graph_color_settings(self):
@@ -529,7 +597,10 @@ class MainWindow(QMainWindow):
         selected_date = self.calendar.selectedDate().toString(Qt.DateFormat.ISODate)
 
         # Fetch data from the database for the selected date
-        self.cursor.execute('SELECT weight, food_consumed, exercises FROM daily_data WHERE date = ?', (selected_date,))
+        self.cursor.execute(
+            "SELECT weight, food_consumed, exercises FROM daily_data WHERE date = ?",
+            (selected_date,),
+        )
         data = self.cursor.fetchone()
 
         if data:
@@ -545,7 +616,9 @@ class MainWindow(QMainWindow):
         self.dropdown_2.clear()  # Clear the existing dropdown items for food
 
         # Fetch all the food items from the basic and composite food tables
-        self.cursor.execute("SELECT food_name FROM basic_food UNION SELECT food_name FROM composite_food")
+        self.cursor.execute(
+            "SELECT food_name FROM basic_food UNION SELECT food_name FROM composite_food"
+        )
         foods = self.cursor.fetchall()
 
         # Add the new food items to the dropdown
@@ -577,13 +650,17 @@ class MainWindow(QMainWindow):
 
         # Section for food entries
         self.food_rows = []
-        food_list = [tuple(item.split(',')) for item in food_consumed.split(';')] if food_consumed else []
+        food_list = (
+            [tuple(item.split(",")) for item in food_consumed.split(";")] if food_consumed else []
+        )
         for food_name, amount in food_list:
             self.add_food_row(food_name, amount)
 
         # Section for exercise entries
         self.exercise_rows = []
-        exercise_list = [tuple(item.split(',')) for item in exercises.split(';')] if exercises else []
+        exercise_list = (
+            [tuple(item.split(",")) for item in exercises.split(";")] if exercises else []
+        )
         for exercise_name, calories in exercise_list:
             self.add_exercise_row(exercise_name, calories)
 
@@ -664,7 +741,9 @@ class MainWindow(QMainWindow):
 
         if type == "food":
             # Fetch all food items from both basic and composite food tables
-            self.cursor.execute("SELECT food_name FROM basic_food UNION SELECT food_name FROM composite_food")
+            self.cursor.execute(
+                "SELECT food_name FROM basic_food UNION SELECT food_name FROM composite_food"
+            )
             foods = self.cursor.fetchall()
             for food in foods:
                 dropdown.addItem(food[0])
@@ -676,7 +755,9 @@ class MainWindow(QMainWindow):
 
     def load_daily_data(self, date):
         """Load the weight, food, and exercises for the selected date"""
-        self.cursor.execute('SELECT weight, food_consumed, exercises FROM daily_data WHERE date = ?', (date,))
+        self.cursor.execute(
+            "SELECT weight, food_consumed, exercises FROM daily_data WHERE date = ?", (date,)
+        )
         data = self.cursor.fetchone()
 
         if data:
@@ -686,7 +767,7 @@ class MainWindow(QMainWindow):
             food_list = []
             if food_consumed:
                 try:
-                    food_list = [tuple(item.split(',')) for item in food_consumed.split(';')]
+                    food_list = [tuple(item.split(",")) for item in food_consumed.split(";")]
                 except ValueError:
                     pass  # Handle any improperly formatted food data
 
@@ -694,7 +775,7 @@ class MainWindow(QMainWindow):
             exercise_list = []
             if exercises:
                 try:
-                    exercise_list = [tuple(item.split(',')) for item in exercises.split(';')]
+                    exercise_list = [tuple(item.split(",")) for item in exercises.split(";")]
                 except ValueError:
                     pass  # Handle any improperly formatted exercise data
 
@@ -757,14 +838,20 @@ class MainWindow(QMainWindow):
         # Row 1: Color selection
         color_label = QLabel("Color")
         self.weight_color_dropdown = QComboBox()
-        self.weight_color_dropdown.addItems(["Red", "Blue", "Green", "Yellow", "Black"])
+        self.weight_color_dropdown.addItems(["Red", "Blue", "Green", "Yellow", "Black", "White"])
         self.weight_color_dropdown.setCurrentText(self.weight_color)  # Set current value
         self.calories_in_color_dropdown = QComboBox()
-        self.calories_in_color_dropdown.addItems(["Red", "Blue", "Green", "Yellow", "Black"])
+        self.calories_in_color_dropdown.addItems(
+            ["Red", "Blue", "Green", "Yellow", "Black", "White"]
+        )
         self.calories_in_color_dropdown.setCurrentText(self.calories_in_color)  # Set current value
         self.calories_out_color_dropdown = QComboBox()
-        self.calories_out_color_dropdown.addItems(["Red", "Blue", "Green", "Yellow", "Black"])
-        self.calories_out_color_dropdown.setCurrentText(self.calories_out_color)  # Set current value
+        self.calories_out_color_dropdown.addItems(
+            ["Red", "Blue", "Green", "Yellow", "Black", "White"]
+        )
+        self.calories_out_color_dropdown.setCurrentText(
+            self.calories_out_color
+        )  # Set current value
         graph_settings_grid.addWidget(color_label, 1, 0)
         graph_settings_grid.addWidget(self.weight_color_dropdown, 1, 1)
         graph_settings_grid.addWidget(self.calories_in_color_dropdown, 1, 2)
@@ -780,7 +867,9 @@ class MainWindow(QMainWindow):
         self.calories_in_shape_dropdown.setCurrentText(self.calories_in_shape)  # Set current value
         self.calories_out_shape_dropdown = QComboBox()
         self.calories_out_shape_dropdown.addItems(["Circle", "Square", "Triangle"])
-        self.calories_out_shape_dropdown.setCurrentText(self.calories_out_shape)  # Set current value
+        self.calories_out_shape_dropdown.setCurrentText(
+            self.calories_out_shape
+        )  # Set current value
         graph_settings_grid.addWidget(shape_label, 2, 0)
         graph_settings_grid.addWidget(self.weight_shape_dropdown, 2, 1)
         graph_settings_grid.addWidget(self.calories_in_shape_dropdown, 2, 2)
@@ -939,7 +1028,9 @@ class MainWindow(QMainWindow):
 
         # Check if the food is Basic or Composite
         self.cursor.execute(
-            'SELECT calories_per_100g, protein_per_100g FROM basic_food WHERE food_name = ?', (selected_food,))
+            "SELECT calories_per_100g, protein_per_100g FROM basic_food WHERE food_name = ?",
+            (selected_food,),
+        )
         basic_food = self.cursor.fetchone()
 
         if basic_food:
@@ -948,12 +1039,16 @@ class MainWindow(QMainWindow):
         else:
             # Check if it's a Composite food
             self.cursor.execute(
-                'SELECT ingredients, calories_per_100g, protein_per_100g FROM composite_food WHERE food_name = ?', (selected_food,))
+                "SELECT ingredients, calories_per_100g, protein_per_100g FROM composite_food WHERE food_name = ?",
+                (selected_food,),
+            )
             composite_food = self.cursor.fetchone()
 
             if composite_food:
                 # If it's a Composite food, load the Composite food form with pre-filled data
-                self.show_composite_food_form(edit=True, food_data=composite_food, food_name=selected_food)
+                self.show_composite_food_form(
+                    edit=True, food_data=composite_food, food_name=selected_food
+                )
 
     def show_basic_food_form(self, edit=False, food_data=None, food_name=None):
         # Create the dialog for basic food
@@ -1036,9 +1131,9 @@ class MainWindow(QMainWindow):
 
         # If editing, populate the ingredient rows with the existing data
         if edit and food_data:
-            ingredients = food_data[0].split(';')  # Ingredients string from database
+            ingredients = food_data[0].split(";")  # Ingredients string from database
             for ingredient in ingredients:
-                name, quantity = ingredient.split(',')
+                name, quantity = ingredient.split(",")
                 self.create_ingredient_row(ingredient_layout, name, quantity)
         else:
             # Add an initial empty row for new ingredient
@@ -1089,19 +1184,25 @@ class MainWindow(QMainWindow):
         new_food_name = self.input_1.text().strip()
         calories = self.input_2.text().strip()
         protein = self.input_3.text().strip()
-        old_food_name = self.food_dropdown.currentText().strip()  # The original name selected from the dropdown
+        old_food_name = (
+            self.food_dropdown.currentText().strip()
+        )  # The original name selected from the dropdown
 
         if new_food_name and calories and protein:
             # Check if the new food name already exists (to avoid duplicate names)
-            self.cursor.execute('SELECT food_name FROM basic_food WHERE food_name = ?', (new_food_name,))
+            self.cursor.execute(
+                "SELECT food_name FROM basic_food WHERE food_name = ?", (new_food_name,)
+            )
             existing_food = self.cursor.fetchone()
 
             if existing_food is None or new_food_name == old_food_name:
                 # If the new name doesn't exist or the name is the same, update the record
-                self.cursor.execute('''UPDATE basic_food
+                self.cursor.execute(
+                    """UPDATE basic_food
                                        SET food_name = ?, calories_per_100g = ?, protein_per_100g = ?
-                                       WHERE food_name = ?''',
-                                    (new_food_name, float(calories), float(protein), old_food_name))
+                                       WHERE food_name = ?""",
+                    (new_food_name, float(calories), float(protein), old_food_name),
+                )
                 self.conn.commit()
 
                 self.refresh_food_dropdowns()  # Refresh dropdowns after updating the food
@@ -1112,7 +1213,9 @@ class MainWindow(QMainWindow):
 
     def update_composite_food(self):
         new_composite_name = self.input_1.text().strip()
-        old_composite_name = self.food_dropdown.currentText().strip()  # The original name selected from the dropdown
+        old_composite_name = (
+            self.food_dropdown.currentText().strip()
+        )  # The original name selected from the dropdown
         ingredients = []
         total_calories = 0
         total_protein = 0
@@ -1124,11 +1227,13 @@ class MainWindow(QMainWindow):
             quantity = quantity_input.text().strip()
 
             if ingredient_name and quantity:
-                self.cursor.execute('''SELECT calories_per_100g, protein_per_100g
+                self.cursor.execute(
+                    """SELECT calories_per_100g, protein_per_100g
                                        FROM basic_food WHERE food_name = ?
                                        UNION SELECT calories_per_100g, protein_per_100g
-                                       FROM composite_food WHERE food_name = ?''',
-                                    (ingredient_name, ingredient_name))
+                                       FROM composite_food WHERE food_name = ?""",
+                    (ingredient_name, ingredient_name),
+                )
                 food_data = self.cursor.fetchone()
 
                 if food_data:
@@ -1145,29 +1250,43 @@ class MainWindow(QMainWindow):
             composite_calories_per_100g = (total_calories / total_weight) * 100
             composite_protein_per_100g = (total_protein / total_weight) * 100
 
-            ingredients_str = ';'.join([f"{name},{amount}" for name, amount in ingredients])
+            ingredients_str = ";".join([f"{name},{amount}" for name, amount in ingredients])
 
             # Check if the new name already exists
-            self.cursor.execute('SELECT food_name FROM composite_food WHERE food_name = ?', (new_composite_name,))
+            self.cursor.execute(
+                "SELECT food_name FROM composite_food WHERE food_name = ?", (new_composite_name,)
+            )
             existing_food = self.cursor.fetchone()
 
             if existing_food is None or new_composite_name == old_composite_name:
                 # Update the composite food in the database
-                self.cursor.execute('''UPDATE composite_food
+                self.cursor.execute(
+                    """UPDATE composite_food
                                        SET food_name = ?, ingredients = ?, calories_per_100g = ?, protein_per_100g = ?
-                                       WHERE food_name = ?''',
-                                    (new_composite_name, ingredients_str, composite_calories_per_100g, composite_protein_per_100g, old_composite_name))
+                                       WHERE food_name = ?""",
+                    (
+                        new_composite_name,
+                        ingredients_str,
+                        composite_calories_per_100g,
+                        composite_protein_per_100g,
+                        old_composite_name,
+                    ),
+                )
                 self.conn.commit()
 
                 self.refresh_food_dropdowns()  # Refresh dropdowns to show the newly updated food
                 self.new_food_dialog.accept()  # Close the dialog
             else:
                 # Show a message that the new name already exists
-                print("A composite food with this name already exists. Please choose a different name.")
+                print(
+                    "A composite food with this name already exists. Please choose a different name."
+                )
 
     def calculate_daily_totals(self):
         # Query to get all the dates and their respective data from the database in ascending order by date
-        self.cursor.execute('SELECT date, weight, food_consumed, exercises FROM daily_data ORDER BY date ASC')
+        self.cursor.execute(
+            "SELECT date, weight, food_consumed, exercises FROM daily_data ORDER BY date ASC"
+        )
         records = self.cursor.fetchall()
 
         # Initialize a list to hold the rows for the table
@@ -1182,12 +1301,14 @@ class MainWindow(QMainWindow):
             total_calories_in = 0
             total_protein = 0
             if food_consumed:
-                foods = [tuple(item.split(',')) for item in food_consumed.split(';')]
+                foods = [tuple(item.split(",")) for item in food_consumed.split(";")]
                 for food_name, amount in foods:
                     amount_in_grams = float(amount)
                     # Get the food's calories and protein from the database
                     self.cursor.execute(
-                        'SELECT calories_per_100g, protein_per_100g FROM basic_food WHERE food_name = ? UNION SELECT calories_per_100g, protein_per_100g FROM composite_food WHERE food_name = ?', (food_name, food_name))
+                        "SELECT calories_per_100g, protein_per_100g FROM basic_food WHERE food_name = ? UNION SELECT calories_per_100g, protein_per_100g FROM composite_food WHERE food_name = ?",
+                        (food_name, food_name),
+                    )
                     food_data = self.cursor.fetchone()
                     if food_data:
                         calories_per_100g, protein_per_100g = food_data
@@ -1197,7 +1318,7 @@ class MainWindow(QMainWindow):
             # Calories Out calculation from exercises
             total_calories_out = 0
             if exercises:
-                exercise_list = [tuple(item.split(',')) for item in exercises.split(';')]
+                exercise_list = [tuple(item.split(",")) for item in exercises.split(";")]
                 for exercise, calories in exercise_list:
                     total_calories_out += float(calories)
 
@@ -1210,9 +1331,17 @@ class MainWindow(QMainWindow):
             goal_diff = f"{weight - Goal:.2f}" if weight is not None else "N/A"
 
             # Prepare the row for the table
-            table_data.append([date, f"{weight}" if weight is not None else "N/A",
-                               f"{total_calories_in:.0f}", f"{total_calories_out:.0f}",
-                               f"{total_protein:.0f}", prior_diff, goal_diff])
+            table_data.append(
+                [
+                    date,
+                    f"{weight}" if weight is not None else "N/A",
+                    f"{total_calories_in:.0f}",
+                    f"{total_calories_out:.0f}",
+                    f"{total_protein:.0f}",
+                    prior_diff,
+                    goal_diff,
+                ]
+            )
 
             # Update previous_weight for the next iteration (current row weight becomes previous_weight)
             previous_weight = weight
@@ -1246,9 +1375,13 @@ class MainWindow(QMainWindow):
                 if col_idx == 4 and weight is not None:
                     # Check if protein intake is below 0.8 * weight
                     if protein < 0.8 * weight:
-                        item.setForeground(QColor('red'))  # Set text color to red if condition is met
+                        item.setForeground(
+                            QColor("red")
+                        )  # Set text color to red if condition is met
                     else:
-                        item.setForeground(QColor('black'))  # Set text color back to default for valid values
+                        item.setForeground(
+                            QColor("white")
+                        )  # Set text color back to default for valid values
 
                 self.table.setItem(row_idx, col_idx, item)  # Add item to the table
 
@@ -1286,8 +1419,11 @@ class MainWindow(QMainWindow):
             return  # Do nothing if any field is empty
 
         # Insert the basic food into the database
-        self.cursor.execute('''INSERT INTO basic_food (food_name, calories_per_100g, protein_per_100g)
-                               VALUES (?, ?, ?)''', (food_name, float(calories), float(protein)))
+        self.cursor.execute(
+            """INSERT INTO basic_food (food_name, calories_per_100g, protein_per_100g)
+                               VALUES (?, ?, ?)""",
+            (food_name, float(calories), float(protein)),
+        )
         self.conn.commit()
 
         # Refresh dropdowns to show the newly added food
@@ -1330,11 +1466,13 @@ class MainWindow(QMainWindow):
 
             if ingredient_name and quantity:
                 # Fetch the calories and protein of the ingredient from the database
-                self.cursor.execute('''SELECT calories_per_100g, protein_per_100g
+                self.cursor.execute(
+                    """SELECT calories_per_100g, protein_per_100g
                                        FROM basic_food WHERE food_name = ?
                                        UNION SELECT calories_per_100g, protein_per_100g
-                                       FROM composite_food WHERE food_name = ?''',
-                                    (ingredient_name, ingredient_name))
+                                       FROM composite_food WHERE food_name = ?""",
+                    (ingredient_name, ingredient_name),
+                )
                 food_data = self.cursor.fetchone()
 
                 if food_data:
@@ -1353,10 +1491,17 @@ class MainWindow(QMainWindow):
             composite_protein_per_100g = (total_protein / total_weight) * 100
 
             # Save the composite food into the database
-            ingredients_str = ';'.join([f"{name},{amount}" for name, amount in ingredients])
-            self.cursor.execute('''INSERT INTO composite_food (food_name, ingredients, calories_per_100g, protein_per_100g)
-                                   VALUES (?, ?, ?, ?)''',
-                                (composite_name, ingredients_str, composite_calories_per_100g, composite_protein_per_100g))
+            ingredients_str = ";".join([f"{name},{amount}" for name, amount in ingredients])
+            self.cursor.execute(
+                """INSERT INTO composite_food (food_name, ingredients, calories_per_100g, protein_per_100g)
+                                   VALUES (?, ?, ?, ?)""",
+                (
+                    composite_name,
+                    ingredients_str,
+                    composite_calories_per_100g,
+                    composite_protein_per_100g,
+                ),
+            )
             self.conn.commit()
 
         # Refresh dropdowns to show the newly added food
@@ -1366,10 +1511,13 @@ class MainWindow(QMainWindow):
         self.new_food_dialog.accept()
 
     def save_daily_data(self, date, weight, food_consumed, exercises):
-        food_str = ';'.join([f"{name},{amount}" for name, amount in food_consumed])
-        exercise_str = ';'.join([f"{name},{calories}" for name, calories in exercises])
-        self.cursor.execute('''INSERT OR REPLACE INTO daily_data (date, weight, food_consumed, exercises)
-                               VALUES (?, ?, ?, ?)''', (date, weight, food_str, exercise_str))
+        food_str = ";".join([f"{name},{amount}" for name, amount in food_consumed])
+        exercise_str = ";".join([f"{name},{calories}" for name, calories in exercises])
+        self.cursor.execute(
+            """INSERT OR REPLACE INTO daily_data (date, weight, food_consumed, exercises)
+                               VALUES (?, ?, ?, ?)""",
+            (date, weight, food_str, exercise_str),
+        )
         self.conn.commit()
 
     def show_date_popup(self):
@@ -1417,7 +1565,16 @@ class MainWindow(QMainWindow):
         # Create table with dynamic rows and 7 fixed columns (as seen in your image)
         self.table = QTableWidget(0, 7)
         self.table.setHorizontalHeaderLabels(
-            ['Date', 'Weight (kg)', 'Calories In', 'Calories Out', 'Protein (g)', '\u0394 Prior (kg)', '\u0394 Goal (kg)'])
+            [
+                "Date",
+                "Weight (kg)",
+                "Calories In",
+                "Calories Out",
+                "Protein (g)",
+                "\u0394 Prior (kg)",
+                "\u0394 Goal (kg)",
+            ]
+        )
 
         # Make header bold
         font = self.table.horizontalHeader().font()
@@ -1428,7 +1585,9 @@ class MainWindow(QMainWindow):
         self.table.setAlternatingRowColors(True)
 
         # Ensure columns expand to fit both headers and data
-        self.table.horizontalHeader().setStretchLastSection(False)  # Stretch the last column to fill space
+        self.table.horizontalHeader().setStretchLastSection(
+            False
+        )  # Stretch the last column to fill space
         self.table.resizeColumnsToContents()  # Adjusts all columns based on content and headers
 
         # Enable vertical scrollbar but no horizontal scrollbar
@@ -1454,7 +1613,9 @@ class MainWindow(QMainWindow):
         self.input_field_1.setFixedWidth(InputWidth)  # Make input field 1 shorter
         btn_1 = QPushButton("Add")
         btn_1.setFixedWidth(ButtonWidth)
-        spacer = QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)  # Space between buttons
+        spacer = QSpacerItem(
+            20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+        )  # Space between buttons
         btn_2 = QPushButton("Settings")
         btn_2.setFixedWidth(ButtonWidth)
         btn_2.clicked.connect(self.show_settings_popup)  # Connect the button to open settings popup
@@ -1469,7 +1630,9 @@ class MainWindow(QMainWindow):
         label_layout = QHBoxLayout()  # New horizontal layout for labels
         search_field_1_label = QLabel("Exercise")
         search_field_2_label = QLabel("Calories")
-        spacer_middle = QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        spacer_middle = QSpacerItem(
+            20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+        )
         label_layout.addWidget(search_field_1_label)
         label_layout.addSpacerItem(spacer_middle)
         label_layout.addWidget(search_field_2_label)
@@ -1530,12 +1693,16 @@ class MainWindow(QMainWindow):
         layout.addLayout(label_layout)
 
         input_layout_4 = QHBoxLayout()
-        spacer_left = QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)  # Left gap
+        spacer_left = QSpacerItem(
+            20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+        )  # Left gap
         self.input_field_4 = QLineEdit()
         self.input_field_4.setFixedWidth(InputWidth)  # Align this to the right
         btn_9 = QPushButton("New Food")
         btn_9.setFixedWidth(ButtonWidth)
-        btn_9.clicked.connect(self.show_new_food_popup)  # Connect the new food button to open new food popup
+        btn_9.clicked.connect(
+            self.show_new_food_popup
+        )  # Connect the new food button to open new food popup
         btn_5 = QPushButton("Calculate")
         btn_5.setFixedWidth(ButtonWidth)
         btn_5.clicked.connect(self.calculate_food_quantity)
@@ -1563,31 +1730,56 @@ class MainWindow(QMainWindow):
         self.graph_widget = pg.PlotWidget()
 
         # Create a custom x-axis with rotated labels
-        custom_axis = CustomAxisItem(orientation='bottom')  # Custom x-axis with rotation
-        self.graph_widget.plotItem.setAxisItems({'bottom': custom_axis})
+        custom_axis = CustomAxisItem(orientation="bottom")  # Custom x-axis with rotation
+        self.graph_widget.plotItem.setAxisItems({"bottom": custom_axis})
 
-        # Set background and labels
-        self.graph_widget.setBackground('w')
+        # Set the background color to match the Fusion style grey
+        fusion_grey = QColor(53, 53, 53)
+        self.graph_widget.setBackground(fusion_grey)
+
+        # Customize axis colors (white) and labels (white)
+        axis_pen = pg.mkPen(color="w")  # White color for axis lines
+        self.graph_widget.getAxis("left").setPen(axis_pen)
+        self.graph_widget.getAxis("bottom").setPen(axis_pen)
+        self.graph_widget.getAxis("right").setPen(axis_pen)
+
+        # Set the color of axis labels to white
+        self.graph_widget.getAxis("left").setTextPen(axis_pen)
+        self.graph_widget.getAxis("bottom").setTextPen(axis_pen)
+        self.graph_widget.getAxis("right").setTextPen(axis_pen)
 
         # Move the x-axis up by increasing the bottom padding
-        self.graph_widget.plotItem.getViewBox().setContentsMargins(0, 0, 0, 50)  # Increase bottom padding for axis space
+        self.graph_widget.plotItem.getViewBox().setContentsMargins(
+            0, 0, 0, 50
+        )  # Increase bottom padding for axis space
 
         # Set a fixed height for the bottom axis to create more space between the axis and the "Date" label
         custom_axis.setHeight(58)  # Adjust this value to create space between x-axis and label
 
-        # Set the labels for axes
-        self.graph_widget.plotItem.setLabel('left', 'Weight (kg)')
-        self.graph_widget.plotItem.setLabel('bottom')  # No need for an offset here, space is controlled by axis
+        # Set the labels for axes (they will be white because of the pen)
+        self.graph_widget.plotItem.setLabel("left", "Weight (kg)")
+        # self.graph_widget.plotItem.setLabel("bottom", "Date")
 
         # Add the right axis for calories
-        self.graph_widget.plotItem.showAxis('right')
-        self.graph_widget.plotItem.getAxis('right').setLabel('Calories (kcal)')
+        self.graph_widget.plotItem.showAxis("right")
+        self.graph_widget.getAxis("right").setLabel("Calories (kcal)")
+
+        # Show grid only on the left y-axis and bottom x-axis
+        self.graph_widget.showGrid(
+            x=False, y=True, alpha=0.15
+        )  # Grid on the y-axis (left), no x-axis grid
+
+        # Disable the right y-axis grid explicitly by using a blank pen
+        right_axis = self.graph_widget.plotItem.getAxis("right")
+        right_axis.setGrid(0)  # This will disable the right y-axis grid
 
         return self.graph_widget
 
     def sync_right_y_axis(self):
         """Manually synchronize the right y-axis with the left y-axis but display actual calorie values."""
-        left_range = self.graph_widget.plotItem.vb.viewRange()[1]  # Get the left y-axis range (weights)
+        left_range = self.graph_widget.plotItem.vb.viewRange()[
+            1
+        ]  # Get the left y-axis range (weights)
         max_weight = left_range[1]  # Upper bound of the weight range
 
         # Check if max_calories and max_weight are greater than 0
@@ -1596,7 +1788,7 @@ class MainWindow(QMainWindow):
             normalization_factor = self.max_weight / self.max_calories
 
             # Update the ticks and labels for the right axis to show actual calorie values with increments of 100
-            self.graph_widget.plotItem.getAxis('right').setTicks(
+            self.graph_widget.plotItem.getAxis("right").setTicks(
                 [list(self._generate_right_axis_ticks(left_range, normalization_factor))]
             )
 
@@ -1614,7 +1806,9 @@ class MainWindow(QMainWindow):
         right_ticks = []
         for right_value in range(int(right_min), int(right_max) + 1, 100):
             left_value = right_value * normalization_factor  # The corresponding left axis value
-            right_ticks.append((left_value, f"{right_value}"))  # Display the right axis value without "cal"
+            right_ticks.append(
+                (left_value, f"{right_value}")
+            )  # Display the right axis value without "cal"
 
         return right_ticks
 
@@ -1640,8 +1834,12 @@ class MainWindow(QMainWindow):
             if date_item and weight_item and calories_in_item and calories_out_item:
                 dates.append(date_item.text())
                 weights.append(float(weight_item.text()) if weight_item.text() != "N/A" else None)
-                calories_in.append(float(calories_in_item.text()) if calories_in_item.text() != "N/A" else 0)
-                calories_out.append(float(calories_out_item.text()) if calories_out_item.text() != "N/A" else 0)
+                calories_in.append(
+                    float(calories_in_item.text()) if calories_in_item.text() != "N/A" else 0
+                )
+                calories_out.append(
+                    float(calories_out_item.text()) if calories_out_item.text() != "N/A" else 0
+                )
 
         # Reverse data to make it descending (most recent first)
         dates.reverse()
@@ -1654,7 +1852,9 @@ class MainWindow(QMainWindow):
 
         # Find the maximum weight and calorie value for normalization
         self.max_weight = max([w for w in weights if w is not None]) if weights else 0
-        self.max_calories = max(max(calories_in), max(calories_out)) if calories_in and calories_out else 0
+        self.max_calories = (
+            max(max(calories_in), max(calories_out)) if calories_in and calories_out else 0
+        )
 
         # Normalize calories based on max weight (a kg = b cal)
         normalization_factor = self.max_weight / self.max_calories if self.max_calories > 0 else 1
@@ -1664,9 +1864,15 @@ class MainWindow(QMainWindow):
         normalized_calories_out = [cal * normalization_factor for cal in calories_out]
 
         # Convert color names to QColor/RGBA tuples
-        weight_color = get_color_from_name(self.weight_color, int(self.weight_opacity * 2.55))  # Opacity is 0-255
-        calories_in_color = get_color_from_name(self.calories_in_color, int(self.calories_in_opacity * 2.55))
-        calories_out_color = get_color_from_name(self.calories_out_color, int(self.calories_out_opacity * 2.55))
+        weight_color = get_color_from_name(
+            self.weight_color, int(self.weight_opacity * 2.55)
+        )  # Opacity is 0-255
+        calories_in_color = get_color_from_name(
+            self.calories_in_color, int(self.calories_in_opacity * 2.55)
+        )
+        calories_out_color = get_color_from_name(
+            self.calories_out_color, int(self.calories_out_opacity * 2.55)
+        )
 
         # Plot the weight data on the left y-axis (main axis)
         weight_shape_symbol = get_shape_symbol(self.weight_shape)
@@ -1678,13 +1884,13 @@ class MainWindow(QMainWindow):
             size=self.calories_out_size,
             pen=pg.mkPen(color=calories_out_color),
             brush=pg.mkBrush(calories_out_color),
-            symbol=calories_out_shape_symbol
+            symbol=calories_out_shape_symbol,
         )
         calories_in_scatter = pg.ScatterPlotItem(
             size=self.calories_in_size,
             pen=pg.mkPen(color=calories_in_color),
             brush=pg.mkBrush(calories_in_color),
-            symbol=calories_in_shape_symbol
+            symbol=calories_in_shape_symbol,
         )
 
         # Add the calorie scatter plots first (to make them appear behind the weight)
@@ -1699,7 +1905,7 @@ class MainWindow(QMainWindow):
             size=self.weight_size,
             pen=pg.mkPen(color=weight_color),
             brush=pg.mkBrush(weight_color),
-            symbol=weight_shape_symbol
+            symbol=weight_shape_symbol,
         )
         weight_scatter.setData(date_indices, weights)
         self.graph_widget.addItem(weight_scatter)
@@ -1709,7 +1915,7 @@ class MainWindow(QMainWindow):
         self.graph_widget.repaint()
 
         # Set x-axis labels and link to numeric indices of dates
-        self.graph_widget.getAxis('bottom').setTicks([list(enumerate(dates))])
+        self.graph_widget.getAxis("bottom").setTicks([list(enumerate(dates))])
 
         # Set y-axis ranges with some padding (10% extra space)
         self.graph_widget.getViewBox().setYRange(0, self.max_weight * 1.1, padding=0)
@@ -1718,7 +1924,9 @@ class MainWindow(QMainWindow):
         self.graph_widget.setXRange(0, len(dates) - 1)
 
         # Disable panning/zooming beyond the limits
-        self.graph_widget.getViewBox().setLimits(xMin=0, xMax=len(dates) - 1, yMin=0, yMax=self.max_weight * 1.1)
+        self.graph_widget.getViewBox().setLimits(
+            xMin=0, xMax=len(dates) - 1, yMin=0, yMax=self.max_weight * 1.1
+        )
 
         # Sync the right y-axis range to the left y-axis
         self.sync_right_y_axis()
