@@ -1402,7 +1402,7 @@ class MainWindow(QMainWindow):
 
         # Show grid only on the left y-axis and bottom x-axis
         self.graph_widget.showGrid(
-            x=False, y=True, alpha=0.15
+            x=False, y=False, alpha=0.15
         )  # Grid on the y-axis (left), no x-axis grid
 
         # Disable the right y-axis grid explicitly by using a blank pen
