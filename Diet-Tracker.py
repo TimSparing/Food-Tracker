@@ -25,7 +25,7 @@ import sqlite3
 
 ButtonWidth = 80
 InputWidth = 125
-Goal = 80
+Goal = 75
 
 
 class CustomAxisItem(pg.AxisItem):
