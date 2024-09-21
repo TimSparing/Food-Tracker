@@ -33,6 +33,25 @@ class CustomAxisItem(pg.AxisItem):
         super().__init__(*args, **kwargs)
         self.label_angle = -60  # Set the default label angle
 
+    def boundingRect(self):
+        """Modify boundingRect to prevent labels from disappearing at edges."""
+        rect = self.mapRectFromParent(self.geometry())
+
+        # Extend rect to account for text that flows past the edges
+        tl = self.style["tickLength"]
+        m = 200  # Adjust this value to control the extra space for labels
+
+        if self.orientation == "left":
+            rect = rect.adjusted(0, -m, -min(0, tl), m)
+        elif self.orientation == "right":
+            rect = rect.adjusted(min(0, tl), -m, 0, m)
+        elif self.orientation == "top":
+            rect = rect.adjusted(-m, 0, m, -min(0, tl))
+        elif self.orientation == "bottom":
+            rect = rect.adjusted(-m, min(0, tl), m, 0)
+
+        return rect
+
     def tickStrings(self, values, scale, spacing):
         """Override tickStrings to format axis labels."""
         strings = super().tickStrings(values, scale, spacing)
@@ -65,6 +84,19 @@ class CustomAxisItem(pg.AxisItem):
             # Draw the rotated text
             p.drawText(rect, flags, text)
             p.restore()  # Restore painter state
+
+
+class CustomPlotItem(pg.PlotItem):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def resizeEvent(self, ev):
+        if self.autoBtn is None:  # already closed down
+            return
+        btnRect = self.mapRectFromItem(self.autoBtn, self.autoBtn.boundingRect())
+        y = self.size().height() - btnRect.height()  # Bottom of the widget
+        x = self.size().width() - btnRect.width()  # Right side of the widget
+        self.autoBtn.setPos(x, y)  # Set position to bottom-right
 
 
 def get_color_from_name(color_name, opacity=255):
@@ -1364,15 +1396,17 @@ class MainWindow(QMainWindow):
 
     def create_graph(self):
         # Create the main plot widget
-        self.graph_widget = pg.PlotWidget()
+        self.graph_widget = pg.PlotWidget(plotItem=CustomPlotItem())
 
         # Create a custom x-axis with rotated labels
         custom_axis = CustomAxisItem(orientation="bottom")  # Custom x-axis with rotation
         self.graph_widget.plotItem.setAxisItems({"bottom": custom_axis})
 
         # Set the background color to match the Fusion style grey
-        fusion_grey = QColor(53, 53, 53)
-        self.graph_widget.setBackground(fusion_grey)
+        fusion_grey = QColor(73, 73, 73)
+        fusion_grey_dark = QColor(53, 53, 53)
+        self.graph_widget.setBackground(fusion_grey_dark)
+        self.graph_widget.getPlotItem().getViewBox().setBackgroundColor(fusion_grey)
 
         # Customize axis colors (white) and labels (white)
         axis_pen = pg.mkPen(color="w")  # White color for axis lines
@@ -1384,11 +1418,6 @@ class MainWindow(QMainWindow):
         self.graph_widget.getAxis("left").setTextPen(axis_pen)
         self.graph_widget.getAxis("bottom").setTextPen(axis_pen)
         self.graph_widget.getAxis("right").setTextPen(axis_pen)
-
-        # Move the x-axis up by increasing the bottom padding
-        self.graph_widget.plotItem.getViewBox().setContentsMargins(
-            0, 0, 0, 50
-        )  # Increase bottom padding for axis space
 
         # Set a fixed height for the bottom axis to create more space between the axis and the "Date" label
         custom_axis.setHeight(58)  # Adjust this value to create space between x-axis and label
@@ -1410,9 +1439,10 @@ class MainWindow(QMainWindow):
         right_axis.setGrid(0)  # This will disable the right y-axis grid
 
         # Create the legend and add it to the top of the graph
-        self.legend = pg.LegendItem(offset=(85, 0.001))  # Position it at the top-left corner
+        self.legend = pg.LegendItem()  # Position it at the top-left corner
         self.legend.setParentItem(self.graph_widget.plotItem)
         self.legend.setColumnCount(3)
+        self.legend.anchor(itemPos=(0.5, 0), parentPos=(0.5, 0), offset=(0, 0))
 
         return self.graph_widget
 
